@@ -1,0 +1,24 @@
+[package]
+name = "rust-api-template"
+version = "0.1.0"
+edition = "2021"
+
+[[test]]
+name = "book_repository"
+path = "tests/book_repository.rs"
+
+[[test]]
+name = "book_routes"
+path = "tests/book_routes.rs"
+
+[dependencies]
+actix-cors = "0.7.0"
+actix-web = "4"
+chrono = { version = "0.4.39", features = ["serde"] }
+derive_more = "0.99.17"
+dotenv = "0.15.0"
+env_logger = "0.11.6"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.137"
+sqlx = { version = "0.8.1", features = ["chrono", "postgres", "runtime-async-std-native-tls", "uuid"] }
+uuid = { version = "1.12.1", features = ["serde", "v4"] }
