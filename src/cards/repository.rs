@@ -1,6 +1,6 @@
-use sqlx::PgPool;
 use super::model::CardModel;
 use crate::error::Error;
+use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct CardRepository {
@@ -26,10 +26,14 @@ impl CardRepository {
             .map_err(|_| Error::NotFound(format!("Card with name {}", name)))
     }
 
-    pub async fn list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<CardModel>, Error> {
+    pub async fn list(
+        &self,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<CardModel>, Error> {
         let limit = limit.unwrap_or(100);
         let offset = offset.unwrap_or(0);
-        
+
         sqlx::query_as!(
             CardModel,
             "SELECT * FROM card ORDER BY name LIMIT $1 OFFSET $2",
