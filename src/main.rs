@@ -1,6 +1,9 @@
 use dotenv::dotenv;
 use manaql_mcp::mcp::McpServer;
-use manaql_mcp::{cards::repository::CardRepository, AppState};
+use manaql_mcp::{
+    cards::{repository::CardRepository, service::CardService},
+    AppState,
+};
 use sqlx::postgres::PgPoolOptions;
 use tracing;
 
@@ -28,7 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let card_repo = CardRepository::new(pool.clone());
-    let app_state = AppState { card_repo };
+    let card_service = CardService::new(card_repo.clone());
+    let app_state = AppState { card_service };
 
     McpServer::start_stdio(app_state).await?;
 

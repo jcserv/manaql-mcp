@@ -12,13 +12,15 @@ use crate::AppState;
 
 pub struct McpServer {
     tool_router: ToolRouter<Self>,
+    app_state: AppState,
 }
 
 #[tool_router]
 impl McpServer {
-    pub fn new(_app_state: AppState) -> Self {
+    pub fn new(app_state: AppState) -> Self {
         Self {
             tool_router: Self::tool_router(),
+            app_state,
         }
     }
 
@@ -34,13 +36,30 @@ impl McpServer {
     ) -> Result<CallToolResult, McpError> {
         let limit = request.limit.unwrap_or(10);
 
-        // TODO: Implement actual search using card_repo
-        let result = format!(
-            "Searching for cards with query '{}' (limit: {})",
-            request.query, limit
-        );
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        match self
+            .app_state
+            .card_service
+            .search_cards(&request.query, Some(limit))
+            .await
+        {
+            Ok(cards) => {
+                let result = if cards.is_empty() {
+                    format!("No cards found matching '{}'", request.query)
+                } else {
+                    let card_names: Vec<String> =
+                        cards.iter().map(|card| card.name.clone()).collect();
+                    format!("Found {} cards: {}", cards.len(), card_names.join(", "))
+                };
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => {
+                tracing::error!("Error searching cards: {:?}", e);
+                Err(McpError::resource_not_found(
+                    "internal_server_error",
+                    Some(json!({ "error": e.to_string() })),
+                ))
+            }
+        }
     }
 
     #[tool(description = "Get a specific card by ID")]
@@ -48,10 +67,22 @@ impl McpServer {
         &self,
         Parameters(request): Parameters<crate::cards::mcp::GetCardByIdRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // TODO: Implement actual card retrieval using card_repo
-        let result = format!("Retrieving card with ID: {}", request.id);
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        match self.app_state.card_service.get_card_by_id(request.id).await {
+            Ok(card) => {
+                let result = format!(
+                    "Card: {} (ID: {}, Type: {})",
+                    card.name, card.id, card.main_type
+                );
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => {
+                tracing::error!("Error getting card by ID: {:?}", e);
+                Err(McpError::resource_not_found(
+                    "internal_server_error",
+                    Some(json!({ "error": e.to_string() })),
+                ))
+            }
+        }
     }
 
     #[tool(description = "Get cards by type")]
@@ -61,21 +92,52 @@ impl McpServer {
     ) -> Result<CallToolResult, McpError> {
         let limit = request.limit.unwrap_or(20);
 
-        // TODO: Implement actual type filtering using card_repo
-        let result = format!(
-            "Getting cards of type '{}' (limit: {})",
-            request.card_type, limit
-        );
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        match self
+            .app_state
+            .card_service
+            .get_cards_by_type(&request.card_type, Some(limit))
+            .await
+        {
+            Ok(cards) => {
+                let result = if cards.is_empty() {
+                    format!("No cards found of type '{}'", request.card_type)
+                } else {
+                    let card_names: Vec<String> =
+                        cards.iter().map(|card| card.name.clone()).collect();
+                    format!(
+                        "Found {} cards of type '{}': {}",
+                        cards.len(),
+                        request.card_type,
+                        card_names.join(", ")
+                    )
+                };
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => {
+                tracing::error!("Error getting cards by type: {:?}", e);
+                Err(McpError::resource_not_found(
+                    "internal_server_error",
+                    Some(json!({ "error": e.to_string() })),
+                ))
+            }
+        }
     }
 
     #[tool(description = "Get total number of cards in database")]
     pub async fn get_card_count(&self) -> Result<CallToolResult, McpError> {
-        // TODO: Implement actual count using card_repo
-        let result = "Total cards in database: [count to be implemented]";
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        match self.app_state.card_service.get_card_count().await {
+            Ok(count) => {
+                let result = format!("Total cards in database: {}", count);
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => {
+                tracing::error!("Error getting card count: {:?}", e);
+                Err(McpError::resource_not_found(
+                    "internal_server_error",
+                    Some(json!({ "error": e.to_string() })),
+                ))
+            }
+        }
     }
 }
 

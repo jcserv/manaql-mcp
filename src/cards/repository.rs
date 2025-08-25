@@ -44,4 +44,13 @@ impl CardRepository {
         .await
         .map_err(|_| Error::InternalServerError)
     }
+
+    pub async fn count(&self) -> Result<i64, Error> {
+        let result = sqlx::query!("SELECT COUNT(*) as count FROM card")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| Error::InternalServerError)?;
+
+        Ok(result.count.unwrap_or(0))
+    }
 }

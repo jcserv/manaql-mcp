@@ -2,9 +2,9 @@ pub mod cards;
 pub mod error;
 pub mod mcp;
 
-use cards::repository::CardRepository;
+use cards::service::CardService;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub card_repo: CardRepository,
+    pub card_service: CardService,
 }
