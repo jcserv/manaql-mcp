@@ -31,24 +31,8 @@ src/
 
 ## Usage
 
-### Running with stdio transport
-```bash
-cargo run
-```
-
-## Development
-
-### Testing
-```bash
-cargo test
-```
-
-### Building
-```bash
-cargo build --release
-```
-
-### Using with MCP Inspector
+1. Setup the ManaQL DB - follow the instructions [here](https://github.com/jcserv/manaql-ingest)
+2. Run the model context protocol inspector
 ```bash
 npx @modelcontextprotocol/inspector cargo run
 ```
