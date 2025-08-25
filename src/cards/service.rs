@@ -1,5 +1,8 @@
 use super::{model::CardModel, repository::CardRepository};
-use crate::error::Error;
+use crate::{
+    cards::model::{CardFilters, CardType},
+    error::Error,
+};
 
 #[derive(Clone)]
 pub struct CardService {
@@ -19,7 +22,7 @@ impl CardService {
         // TODO: add search to the repository
         let cards = self
             .repository
-            .list(Some(limit.unwrap_or(100) as i64), Some(0))
+            .list(None, Some(limit.unwrap_or(100) as i64), Some(0))
             .await?;
 
         let filtered_cards: Vec<CardModel> = cards
@@ -39,24 +42,21 @@ impl CardService {
         &self,
         card_type: &str,
         limit: Option<i32>,
+        offset: Option<i32>,
     ) -> Result<Vec<CardModel>, Error> {
-        // TODO: add type filtering to the repository
-        let cards = self
-            .repository
-            .list(Some(limit.unwrap_or(100) as i64), Some(0))
-            .await?;
+        let card_type_enum = CardType::from_str(card_type);
 
-        let filtered_cards: Vec<CardModel> = cards
-            .into_iter()
-            .filter(|card| {
-                card.main_type
-                    .to_lowercase()
-                    .contains(&card_type.to_lowercase())
-            })
-            .take(limit.unwrap_or(20) as usize)
-            .collect();
+        let filters = CardFilters {
+            main_type: Some(card_type_enum),
+        };
 
-        Ok(filtered_cards)
+        self.repository
+            .list(
+                Some(filters),
+                Some(limit.unwrap_or(100) as i64),
+                Some(offset.unwrap_or(0) as i64),
+            )
+            .await
     }
 
     pub async fn get_card_count(&self) -> Result<i64, Error> {

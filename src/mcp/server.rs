@@ -91,23 +91,29 @@ impl McpServer {
         Parameters(request): Parameters<crate::cards::mcp::GetCardsByTypeRequest>,
     ) -> Result<CallToolResult, McpError> {
         let limit = request.limit.unwrap_or(20);
+        let offset = request.offset.unwrap_or(0);
 
         match self
             .app_state
             .card_service
-            .get_cards_by_type(&request.card_type, Some(limit))
+            .get_cards_by_type(&request.card_type, Some(limit), Some(offset))
             .await
         {
             Ok(cards) => {
                 let result = if cards.is_empty() {
-                    format!("No cards found of type '{}'", request.card_type)
+                    format!(
+                        "No cards found of type '{}' (offset: {})",
+                        request.card_type, offset
+                    )
                 } else {
                     let card_names: Vec<String> =
                         cards.iter().map(|card| card.name.clone()).collect();
                     format!(
-                        "Found {} cards of type '{}': {}",
+                        "Found {} cards of type '{}' (offset: {}, limit: {}): {}",
                         cards.len(),
                         request.card_type,
+                        offset,
+                        limit,
                         card_names.join(", ")
                     )
                 };
