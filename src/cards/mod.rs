@@ -1,3 +1,4 @@
+pub mod mcp;
 mod model;
 pub mod repository;
 

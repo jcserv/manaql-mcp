@@ -1,14 +1,16 @@
 [package]
-name = "mtg-mcp"
+name = "manaql-mcp"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 derive_more = "0.99.17"
 dotenv = "0.15.0"
-env_logger = "0.11.6"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.137"
+schemars = "0.8"
 sqlx = { version = "0.8.1", features = ["chrono", "postgres", "runtime-async-std-native-tls", "uuid", "json", "bigdecimal"] }
-rmcp = { version = "0.2.0", features = ["server"] }
+rmcp = { version = "0.2.0", features = ["server", "transport-io"] }
 tokio = { version = "1.47.1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
