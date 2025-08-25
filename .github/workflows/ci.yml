@@ -42,10 +42,5 @@ jobs:
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Run database migrations
-        run: |
-          cargo install sqlx-cli --no-default-features --features native-tls,postgres
-          sqlx migrate run
-
       - name: Run tests
         run: cargo test --verbose
