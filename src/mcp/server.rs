@@ -29,26 +29,54 @@ impl McpServer {
     }
 
     // Tool implementations
-    #[tool(description = "Search for cards by name")]
+    #[tool(
+        description = "Search for cards using filters (name, type) and optional query for additional filtering across multiple fields with pagination support"
+    )]
     pub async fn search_cards(
         &self,
         Parameters(request): Parameters<crate::cards::mcp::SearchCardsRequest>,
     ) -> Result<CallToolResult, McpError> {
         let limit = request.limit.unwrap_or(10);
+        let offset = request.offset.unwrap_or(0);
 
         match self
             .app_state
             .card_service
-            .search_cards(&request.query, Some(limit))
+            .search_cards(
+                &request.filters,
+                request.query.as_deref(),
+                Some(limit),
+                Some(offset),
+            )
             .await
         {
             Ok(cards) => {
                 let result = if cards.is_empty() {
-                    format!("No cards found matching '{}'", request.query)
+                    let filter_desc = if request.query.is_some() {
+                        format!(
+                            "matching the specified filters and query (offset: {})",
+                            offset
+                        )
+                    } else {
+                        format!("matching the specified filters (offset: {})", offset)
+                    };
+                    format!("No cards found {}", filter_desc)
                 } else {
                     let card_names: Vec<String> =
                         cards.iter().map(|card| card.name.clone()).collect();
-                    format!("Found {} cards: {}", cards.len(), card_names.join(", "))
+                    let filter_desc = if request.query.is_some() {
+                        "with filters and query"
+                    } else {
+                        "with filters"
+                    };
+                    format!(
+                        "Found {} cards {} (offset: {}, limit: {}): {}",
+                        cards.len(),
+                        filter_desc,
+                        offset,
+                        limit,
+                        card_names.join(", ")
+                    )
                 };
                 Ok(CallToolResult::success(vec![Content::text(result)]))
             }
@@ -77,50 +105,6 @@ impl McpServer {
             }
             Err(e) => {
                 tracing::error!("Error getting card by ID: {:?}", e);
-                Err(McpError::resource_not_found(
-                    "internal_server_error",
-                    Some(json!({ "error": e.to_string() })),
-                ))
-            }
-        }
-    }
-
-    #[tool(description = "Get cards by type")]
-    pub async fn get_cards_by_type(
-        &self,
-        Parameters(request): Parameters<crate::cards::mcp::GetCardsByTypeRequest>,
-    ) -> Result<CallToolResult, McpError> {
-        let limit = request.limit.unwrap_or(20);
-        let offset = request.offset.unwrap_or(0);
-
-        match self
-            .app_state
-            .card_service
-            .get_cards_by_type(&request.card_type, Some(limit), Some(offset))
-            .await
-        {
-            Ok(cards) => {
-                let result = if cards.is_empty() {
-                    format!(
-                        "No cards found of type '{}' (offset: {})",
-                        request.card_type, offset
-                    )
-                } else {
-                    let card_names: Vec<String> =
-                        cards.iter().map(|card| card.name.clone()).collect();
-                    format!(
-                        "Found {} cards of type '{}' (offset: {}, limit: {}): {}",
-                        cards.len(),
-                        request.card_type,
-                        offset,
-                        limit,
-                        card_names.join(", ")
-                    )
-                };
-                Ok(CallToolResult::success(vec![Content::text(result)]))
-            }
-            Err(e) => {
-                tracing::error!("Error getting cards by type: {:?}", e);
                 Err(McpError::resource_not_found(
                     "internal_server_error",
                     Some(json!({ "error": e.to_string() })),

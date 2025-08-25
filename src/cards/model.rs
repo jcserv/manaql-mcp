@@ -90,10 +90,16 @@ pub struct CardFilters {
     /// Filter cards by main type
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main_type: Option<CardType>,
+    /// Fields to search across when a query is provided - options are: name, type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<String>>,
 }
 
 impl Default for CardFilters {
     fn default() -> Self {
-        Self { main_type: None }
+        Self {
+            main_type: None,
+            fields: None,
+        }
     }
 }

@@ -16,47 +16,33 @@ impl CardService {
 
     pub async fn search_cards(
         &self,
-        query: &str,
+        filters: &crate::cards::mcp::SearchFilters,
+        query: Option<&str>,
         limit: Option<i32>,
+        offset: Option<i32>,
     ) -> Result<Vec<CardModel>, Error> {
-        // TODO: add search to the repository
-        let cards = self
-            .repository
-            .list(None, Some(limit.unwrap_or(100) as i64), Some(0))
-            .await?;
+        let mut card_filters = CardFilters {
+            main_type: filters.card_type.as_ref().map(|t| CardType::from_str(t)),
+            fields: filters.fields.clone(),
+        };
 
-        let filtered_cards: Vec<CardModel> = cards
-            .into_iter()
-            .filter(|card| card.name.to_lowercase().contains(&query.to_lowercase()))
-            .take(limit.unwrap_or(10) as usize)
-            .collect();
+        // If a query is provided but no fields specified, default to searching name
+        if query.is_some() && card_filters.fields.is_none() {
+            card_filters.fields = Some(vec!["name".to_string()]);
+        }
 
-        Ok(filtered_cards)
+        self.repository
+            .search(
+                Some(card_filters),
+                query,
+                limit.map(|l| l as i64),
+                offset.map(|o| o as i64),
+            )
+            .await
     }
 
     pub async fn get_card_by_id(&self, id: i32) -> Result<CardModel, Error> {
         self.repository.get(id).await
-    }
-
-    pub async fn get_cards_by_type(
-        &self,
-        card_type: &str,
-        limit: Option<i32>,
-        offset: Option<i32>,
-    ) -> Result<Vec<CardModel>, Error> {
-        let card_type_enum = CardType::from_str(card_type);
-
-        let filters = CardFilters {
-            main_type: Some(card_type_enum),
-        };
-
-        self.repository
-            .list(
-                Some(filters),
-                Some(limit.unwrap_or(100) as i64),
-                Some(offset.unwrap_or(0) as i64),
-            )
-            .await
     }
 
     pub async fn get_card_count(&self) -> Result<i64, Error> {
