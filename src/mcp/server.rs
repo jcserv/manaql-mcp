@@ -129,6 +129,80 @@ impl McpServer {
             }
         }
     }
+
+    #[tool(description = "Find similar cards using vector similarity search based on card characteristics like type, mana cost, function, etc.")]
+    pub async fn find_similar_cards(
+        &self,
+        Parameters(request): Parameters<crate::cards::mcp::FindSimilarCardsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let limit = request.limit.unwrap_or(10);
+
+        match self
+            .app_state
+            .card_service
+            .find_similar_cards(&request.card_name, Some(limit))
+            .await
+        {
+            Ok(cards) => {
+                let result = if cards.is_empty() {
+                    format!("No similar cards found for '{}'", request.card_name)
+                } else {
+                    let card_details: Vec<String> = cards
+                        .iter()
+                        .map(|card| {
+                            let mut details = vec![
+                                format!("{} ({})", card.name, card.main_type)
+                            ];
+                            
+                            if let Some(cmc) = card.cmc {
+                                details.push(format!("CMC: {}", cmc));
+                            }
+                            if let Some(ref mana_cost) = card.mana_cost {
+                                details.push(format!("Cost: {}", mana_cost));
+                            }
+                            if let Some(ref colors) = card.colors {
+                                if !colors.is_empty() {
+                                    details.push(format!("Colors: {}", colors.join(", ")));
+                                }
+                            }
+                            if let Some(ref keywords) = card.keywords {
+                                if !keywords.is_empty() {
+                                    details.push(format!("Keywords: {}", keywords.join(", ")));
+                                }
+                            }
+                            if let Some(ref power) = card.power {
+                                if let Some(ref toughness) = card.toughness {
+                                    details.push(format!("{}/{}", power, toughness));
+                                }
+                            }
+                            if let Some(ref oracle_text) = card.oracle_text {
+                                if !oracle_text.is_empty() {
+                                    details.push(format!("Text: {}", oracle_text));
+                                }
+                            }
+                            
+                            format!("- {}", details.join(" | "))
+                        })
+                        .collect();
+
+                    format!(
+                        "Found {} similar cards to '{}':\n{}",
+                        cards.len(),
+                        request.card_name,
+                        card_details.join("\n")
+                    )
+                };
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => {
+                tracing::error!("Error finding similar cards: {:?}", e);
+                Err(McpError::resource_not_found(
+                    "internal_server_error",
+                    Some(json!({ "error": e.to_string() })),
+                ))
+            }
+        }
+    }
 }
 
 #[tool_handler]
@@ -142,7 +216,7 @@ impl ServerHandler for McpServer {
                 .enable_tools()
                 .build(),
             server_info: Implementation::from_build_env(),
-            instructions: Some("ManaQL MCP Server - Provides tools and prompts for Magic: The Gathering card data.".to_string()),
+            instructions: Some("ManaQL MCP Server - Provides tools and prompts for Magic: The Gathering card data. Tools: search_cards, get_card_by_id, get_card_count, find_similar_cards (vector similarity search).".to_string()),
         }
     }
 

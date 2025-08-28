@@ -1,12 +1,71 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::fmt;
+use pgvector::Vector;
 
-#[derive(Debug, FromRow, Deserialize, Serialize)]
+#[derive(Debug, FromRow)]
 pub struct CardModel {
     pub id: i32,
     pub name: String,
     pub main_type: CardType,
+    pub type_line: Option<String>,
+    pub oracle_text: Option<String>,
+    pub keywords: Option<Vec<String>>,
+    pub cmc: Option<f64>,
+    pub mana_cost: Option<String>,
+    pub colors: Option<Vec<String>>,
+    pub color_identity: Option<Vec<String>>,
+    pub power: Option<String>,
+    pub toughness: Option<String>,
+    pub games: Option<Vec<String>>,
+    pub legalities: Option<serde_json::Value>,
+    pub reserved: Option<bool>,
+    pub game_changer: Option<bool>,
+    pub embedding: Option<Vector>,
+}
+
+// A serializable version of CardModel for MCP responses
+#[derive(Debug, Serialize)]
+pub struct CardResponse {
+    pub id: i32,
+    pub name: String,
+    pub main_type: String,
+    pub type_line: Option<String>,
+    pub oracle_text: Option<String>,
+    pub keywords: Option<Vec<String>>,
+    pub cmc: Option<f64>,
+    pub mana_cost: Option<String>,
+    pub colors: Option<Vec<String>>,
+    pub color_identity: Option<Vec<String>>,
+    pub power: Option<String>,
+    pub toughness: Option<String>,
+    pub games: Option<Vec<String>>,
+    pub legalities: Option<serde_json::Value>,
+    pub reserved: Option<bool>,
+    pub game_changer: Option<bool>,
+}
+
+impl From<CardModel> for CardResponse {
+    fn from(card: CardModel) -> Self {
+        Self {
+            id: card.id,
+            name: card.name,
+            main_type: card.main_type.to_string(),
+            type_line: card.type_line,
+            oracle_text: card.oracle_text,
+            keywords: card.keywords,
+            cmc: card.cmc,
+            mana_cost: card.mana_cost,
+            colors: card.colors,
+            color_identity: card.color_identity,
+            power: card.power,
+            toughness: card.toughness,
+            games: card.games,
+            legalities: card.legalities,
+            reserved: card.reserved,
+            game_changer: card.game_changer,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]

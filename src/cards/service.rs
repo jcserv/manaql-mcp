@@ -48,4 +48,14 @@ impl CardService {
     pub async fn get_card_count(&self) -> Result<i64, Error> {
         self.repository.count().await
     }
+
+    pub async fn find_similar_cards(
+        &self,
+        card_name: &str,
+        limit: Option<i32>,
+    ) -> Result<Vec<CardModel>, Error> {
+        self.repository
+            .find_similar_cards(card_name, limit.map(|l| l as i64))
+            .await
+    }
 }

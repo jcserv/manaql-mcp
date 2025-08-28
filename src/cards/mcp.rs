@@ -30,3 +30,12 @@ pub struct SearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<String>>,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct FindSimilarCardsRequest {
+    /// Name of the card to find similar cards for
+    pub card_name: String,
+    /// Maximum number of similar cards to return (default: 10)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i32>,
+}

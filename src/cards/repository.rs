@@ -1,6 +1,7 @@
 use super::model::{CardFilters, CardModel, CardType};
 use crate::error::Error;
 use sqlx::{PgPool, Row};
+use pgvector::Vector;
 
 const MAX_LIMIT: i64 = 1000;
 
@@ -24,25 +25,61 @@ impl CardRepository {
             .map_err(|_| Error::InternalServerError)?;
         let main_type = CardType::from_str(&main_type_str);
 
+        // Optional fields
+        let type_line: Option<String> = row.try_get("type_line").ok();
+        let oracle_text: Option<String> = row.try_get("oracle_text").ok();
+        let keywords: Option<Vec<String>> = row.try_get("keywords").ok();
+        let cmc: Option<f64> = row.try_get("cmc").ok();
+        let mana_cost: Option<String> = row.try_get("mana_cost").ok();
+        let colors: Option<Vec<String>> = row.try_get("colors").ok();
+        let color_identity: Option<Vec<String>> = row.try_get("color_identity").ok();
+        let power: Option<String> = row.try_get("power").ok();
+        let toughness: Option<String> = row.try_get("toughness").ok();
+        let games: Option<Vec<String>> = row.try_get("games").ok();
+        let legalities: Option<serde_json::Value> = row.try_get("legalities").ok();
+        let reserved: Option<bool> = row.try_get("reserved").ok();
+        let game_changer: Option<bool> = row.try_get("game_changer").ok();
+        let embedding: Option<Vector> = row.try_get("embedding").ok();
+
         Ok(CardModel {
             id,
             name,
             main_type,
+            type_line,
+            oracle_text,
+            keywords,
+            cmc,
+            mana_cost,
+            colors,
+            color_identity,
+            power,
+            toughness,
+            games,
+            legalities,
+            reserved,
+            game_changer,
+            embedding,
         })
     }
 
     pub async fn get(&self, id: i32) -> Result<CardModel, Error> {
-        sqlx::query_as!(CardModel, "SELECT * FROM card WHERE id = $1", id)
+        let row = sqlx::query("SELECT * FROM card WHERE id = $1")
+            .bind(id)
             .fetch_one(&self.pool)
             .await
-            .map_err(|_| Error::NotFound(format!("Card {}", id)))
+            .map_err(|_| Error::NotFound(format!("Card {}", id)))?;
+        
+        Self::row_to_card_model(&row)
     }
 
     pub async fn get_by_name(&self, name: &str) -> Result<CardModel, Error> {
-        sqlx::query_as!(CardModel, "SELECT * FROM card WHERE name = $1", name)
+        let row = sqlx::query("SELECT * FROM card WHERE name = $1")
+            .bind(name)
             .fetch_one(&self.pool)
             .await
-            .map_err(|_| Error::NotFound(format!("Card with name {}", name)))
+            .map_err(|_| Error::NotFound(format!("Card with name {}", name)))?;
+        
+        Self::row_to_card_model(&row)
     }
 
     fn build_where_conditions(
@@ -144,5 +181,46 @@ impl CardRepository {
             .map_err(|_| Error::InternalServerError)?;
 
         Ok(result.count.unwrap_or(0))
+    }
+
+    pub async fn find_similar_cards(
+        &self,
+        card_name: &str,
+        limit: Option<i64>,
+    ) -> Result<Vec<CardModel>, Error> {
+        let limit = limit.unwrap_or(10);
+
+        // First, get the target card's embedding
+        let target_card = self.get_by_name(card_name).await?;
+        
+        let embedding = target_card.embedding.ok_or_else(|| {
+            Error::NotFound(format!("Card '{}' does not have an embedding", card_name))
+        })?;
+
+        // Use pgvector's cosine distance to find similar cards
+        // We exclude the target card itself and order by similarity
+        let query = r#"
+            SELECT * FROM card 
+            WHERE embedding IS NOT NULL 
+            AND name != $1
+            ORDER BY embedding <=> $2
+            LIMIT $3
+        "#;
+
+        let rows = sqlx::query(query)
+            .bind(card_name)
+            .bind(embedding)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database query error: {:?}", e);
+                Error::InternalServerError
+            })?;
+
+        let cards: Result<Vec<CardModel>, Error> =
+            rows.iter().map(Self::row_to_card_model).collect();
+
+        cards
     }
 }
